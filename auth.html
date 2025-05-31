@@ -1,0 +1,278 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Авторизация Mystics Store</title>
+  <style>
+    body {
+      margin: 0;
+      font-family: Arial, sans-serif;
+      background: linear-gradient(135deg, #ff4e50, #f9d423);
+      color: white;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      height: 100vh;
+      padding: 20px;
+      box-sizing: border-box;
+    }
+    h1 {
+      margin-bottom: 25px;
+      font-size: 2.5rem;
+      text-shadow: 0 0 8px #ff3366;
+    }
+    form {
+      background: rgba(255, 51, 102, 0.85);
+      padding: 25px 30px;
+      border-radius: 15px;
+      box-shadow: 0 0 20px rgba(255, 51, 102, 0.7);
+      width: 90vw;
+      max-width: 400px;
+      box-sizing: border-box;
+    }
+    label {
+      display: block;
+      font-size: 1.1rem;
+      margin-bottom: 8px;
+      margin-top: 15px;
+    }
+    input[type="text"],
+    input[type="password"] {
+      width: 100%;
+      padding: 12px;
+      font-size: 1.1rem;
+      border-radius: 10px;
+      border: none;
+      box-sizing: border-box;
+    }
+    .captcha-container {
+      margin-top: 20px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    .captcha-text {
+      font-weight: bold;
+      font-size: 1.3rem;
+      user-select: none;
+      background: #ff1a4d;
+      padding: 8px 15px;
+      border-radius: 10px;
+      box-shadow: 0 0 8px #ff3366;
+    }
+    input.captcha-input {
+      flex-grow: 1;
+      padding: 10px;
+      font-size: 1.1rem;
+      border-radius: 10px;
+      border: none;
+    }
+    button {
+      margin-top: 25px;
+      width: 100%;
+      padding: 15px 0;
+      font-size: 1.4rem;
+      border: none;
+      border-radius: 15px;
+      background: #ff3366;
+      cursor: pointer;
+      color: white;
+      box-shadow: 0 4px 15px rgba(255, 51, 102, 0.8);
+      transition: background-color 0.3s ease;
+      user-select: none;
+    }
+    button:hover {
+      background: #ff1a4d;
+    }
+    #toggleMode {
+      margin-top: 20px;
+      background: transparent;
+      border: none;
+      color: #ffd1e0;
+      text-decoration: underline;
+      cursor: pointer;
+      font-size: 1rem;
+      user-select: none;
+    }
+    #message {
+      margin-top: 15px;
+      font-size: 1.1rem;
+      min-height: 24px;
+      text-align: center;
+      user-select: none;
+    }
+  </style>
+  <h1 id="formTitle">Вход</h1>
+
+  <form id="authForm">
+    <label for="username">Ник</label>
+    <input type="text" id="username" name="username" required autocomplete="off" minlength="3" maxlength="20" />
+
+    <label for="password">Пароль</label>
+    <input type="password" id="password" name="password" required minlength="6" maxlength="30" />
+
+    <div class="captcha-container">
+      <div id="captchaText" class="captcha-text"></div>
+      <input type="text" id="captchaInput" class="captcha-input" placeholder="Введите капчу" required autocomplete="off" />
+    </div>
+
+    <button type="submit" id="submitBtn">Войти</button>
+  </form>
+
+  <button id="toggleMode">Перейти к регистрации</button>
+
+  <div id="message"></div>
+
+  <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-database-compat.js"></script>
+
+  <script>
+    const firebaseConfig = {
+      databaseURL: "https://arlustruke2-default-rtdb.firebaseio.com/"
+    };
+    firebase.initializeApp(firebaseConfig);
+    const db = firebase.database();
+
+    const formTitle = document.getElementById('formTitle');
+    const authForm = document.getElementById('authForm');
+    const toggleModeBtn = document.getElementById('toggleMode');
+    const submitBtn = document.getElementById('submitBtn');
+    const messageEl = document.getElementById('message');
+    const captchaTextEl = document.getElementById('captchaText');
+    const captchaInput = document.getElementById('captchaInput');
+
+    // Режим: 'login' или 'register'
+    let mode = 'login';
+
+    // Генерация простой капчи (математическая задача)
+    let captchaAnswer;
+
+    function generateCaptcha() {
+      const a = Math.floor(Math.random() * 10) + 1;
+      const b = Math.floor(Math.random() * 10) + 1;
+      captchaAnswer = a + b;
+      captchaTextEl.textContent = `${a} + ${b} = ?`;
+      captchaInput.value = '';
+    }
+
+    // Переключение между режимами
+    toggleModeBtn.onclick = () => {
+      if (mode === 'login') {
+        mode = 'register';
+        formTitle.textContent = 'Регистрация';
+        submitBtn.textContent = 'Зарегистрироваться';
+        toggleModeBtn.textContent = 'Перейти к входу';
+        messageEl.textContent = '';
+      } else {
+        mode = 'login';
+        formTitle.textContent = 'Вход';
+        submitBtn.textContent = 'Войти';
+        toggleModeBtn.textContent = 'Перейти к регистрации';
+        messageEl.textContent = '';
+      }
+      generateCaptcha();
+    };
+
+    // Показываем капчу при загрузке
+    generateCaptcha();
+
+    // Проверка ника на валидность (только буквы, цифры, нижнее подчеркивание)
+    function isValidUsername(name) {
+      return /^[a-zA-Z0-9_]{3,20}$/.test(name);
+    }
+
+    // Обработка отправки формы
+    authForm.onsubmit = async (e) => {
+      e.preventDefault();
+      messageEl.textContent = '';
+
+      const username = authForm.username.value.trim();
+      const password = authForm.password.value.trim();
+      const captchaInputValue = captchaInput.value.trim();
+
+      // Проверка капчи
+      if (parseInt(captchaInputValue) !== captchaAnswer) {
+        messageEl.style.color = '#ff4444';
+        messageEl.textContent = 'Неверная капча. Попробуйте ещё раз.';
+        generateCaptcha();
+        return;
+      }
+
+      // Проверка ника
+      if (!isValidUsername(username)) {
+        messageEl.style.color = '#ff4444';
+        messageEl.textContent = 'Ник должен содержать 3-20 символов: буквы, цифры или _';
+        generateCaptcha();
+        return;
+      }
+
+      if (password.length < 6) {
+        messageEl.style.color = '#ff4444';
+        messageEl.textContent = 'Пароль должен быть не менее 6 символов';
+        generateCaptcha();
+        return;
+      }
+if (mode === 'register') {
+        // Проверка, занят ли ник
+        try {
+          const userSnapshot = await db.ref('users/' + username).once('value');
+          if (userSnapshot.exists()) {
+            messageEl.style.color = '#ff4444';
+            messageEl.textContent = 'Этот ник уже занят.';
+            generateCaptcha();
+            return;
+          }
+          // Создаем нового пользователя
+          await db.ref('users/' + username).set({
+            password: password
+          });
+          // Сохраняем в localStorage
+          localStorage.setItem('mysticsUser', JSON.stringify({ id: username, username: username }));
+          messageEl.style.color = '#aaffaa';
+          messageEl.textContent = 'Регистрация прошла успешно! Переход...';
+          setTimeout(() => {
+            window.location.href = 'menu.html';
+          }, 1500);
+        } catch (err) {
+          console.error(err);
+          messageEl.style.color = '#ff4444';
+          messageEl.textContent = 'Ошибка при регистрации, попробуйте позже.';
+          generateCaptcha();
+        }
+      } else {
+        // Вход
+        try {
+          const userSnapshot = await db.ref('users/' + username).once('value');
+          if (!userSnapshot.exists()) {
+            messageEl.style.color = '#ff4444';
+            messageEl.textContent = 'Пользователь не найден.';
+            generateCaptcha();
+            return;
+          }
+          const userData = userSnapshot.val();
+          if (userData.password !== password) {
+            messageEl.style.color = '#ff4444';
+            messageEl.textContent = 'Неверный пароль.';
+            generateCaptcha();
+            return;
+          }
+          // Сохраняем в localStorage
+          localStorage.setItem('mysticsUser', JSON.stringify({ id: username, username: username }));
+          messageEl.style.color = '#aaffaa';
+          messageEl.textContent = 'Вход успешен! Переход...';
+          setTimeout(() => {
+            window.location.href = 'menu.html';
+          }, 1000);
+        } catch (err) {
+          console.error(err);
+          messageEl.style.color = '#ff4444';
+          messageEl.textContent = 'Ошибка при входе, попробуйте позже.';
+          generateCaptcha();
+        }
+      }
+    };
+  </script>
+</body>
+</html>

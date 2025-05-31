@@ -1,0 +1,175 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Mystics Store - Настройки</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+    <style>
+        body {
+            background: linear-gradient(135deg, #1a1a1a, #000);
+            color: white;
+            font-family: 'Arial', sans-serif;
+            min-height: 100vh;
+            margin: 0;
+        }
+        header {
+            background: linear-gradient(to right, #ff2d55, #ff1493);
+            padding: 15px 0;
+            box-shadow: 0 4px 15px rgba(255, 45, 85, 0.4);
+        }
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 0 20px;
+        }
+        .header-content {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .logo {
+            display: flex;
+            align-items: center;
+        }
+        .logo img {
+            height: 40px;
+            margin-right: 10px;
+        }
+        .back-btn {
+            background: rgba(255,255,255,0.2);
+            border: none;
+            color: white;
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+        .back-btn:hover {
+            background: rgba(255,255,255,0.3);
+        }
+        .settings-container {
+            padding: 20px 0;
+        }
+        .settings-section {
+            background: #2a2a2a;
+            border-radius: 10px;
+            padding: 20px;
+            margin-bottom: 20px;
+            border: 1px solid #333;
+        }
+        .settings-section h3 {
+            color: #ff7b8b;
+            margin-bottom: 15px;
+            padding-bottom: 10px;
+            border-bottom: 1px solid #444;
+        }
+        .settings-option {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 15px;
+        }
+        .settings-btn {
+            background: linear-gradient(to right, #ff2d55, #ff1493);
+            color: white;
+            border: none;
+            padding: 10px 15px;
+            border-radius: 5px;
+            cursor: pointer;
+            transition: all 0.3s;
+            width: 100%;
+        }
+        .settings-btn:hover {
+            box-shadow: 0 0 10px rgba(255, 45, 85, 0.5);
+        }
+        .logout-btn {
+            background: rgba(255, 45, 85, 0.2);
+            color: #ff7b8b;
+            border: 1px solid #ff2d55;
+            padding: 12px;
+            border-radius: 5px;
+            cursor: pointer;
+            transition: all 0.3s;
+            width: 100%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+        }
+        .logout-btn:hover {
+            background: rgba(255, 45, 85, 0.3);
+        }
+    </style>
+</head>
+<body>
+    <header>
+        <div class="container">
+            <div class="header-content">
+                <div class="logo">
+                    <img src="https://i.imgur.com/JqYeZ7L.png" alt="Mystics Store">
+                    <h1>Настройки</h1>
+                </div>
+                <a href="menu.html" class="back-btn">
+                    <i class="fas fa-arrow-left"></i>
+                </a>
+            </div>
+        </div>
+    </header>
+
+    <div class="container">
+        <div class="settings-container">
+            <div class="settings-section">
+                <h3>Профиль</h3>
+                <div class="settings-option">
+                    <span>Имя пользователя:</span>
+                    <span id="username">User123</span>
+                </div>
+                <button class="settings-btn" id="changePasswordBtn">
+                    <i class="fas fa-key"></i> Изменить пароль
+                </button>
+            </div>
+            
+            <div class="settings-section">
+                <h3>Приложение</h3>
+                <div class="settings-option">
+                    <span>Версия:</span>
+                    <span>1.0.0</span>
+                </div>
+                <button class="settings-btn" id="checkUpdatesBtn">
+                    <i class="fas fa-sync-alt"></i> Проверить обновления
+                </button>
+            </div>
+            
+            <button class="logout-btn" id="logoutBtn">
+                <i class="fas fa-sign-out-alt"></i> Выйти из аккаунта
+            </button>
+        </div>
+    </div>
+
+    <script>
+        // Проверка авторизации
+        if (!localStorage.getItem('isLoggedIn')) {
+            window.location.href = 'auth.html';
+        }
+        
+        // Заполняем данные пользователя
+        document.getElementById('username').textContent = 
+            localStorage.getItem('username') || 'Пользователь';
+        
+        // Выход из аккаунта
+        document.getElementById('logoutBtn').addEventListener('click', () => {
+            localStorage.removeItem('isLoggedIn');
+            window.location.href = 'auth.html?logout';
+        });
+        
+        // Проверка обновлений
+        document.getElementById('checkUpdatesBtn').addEventListener('click', () => {
+            window.location.href = 'index.html';
+        });
+    </script>
+</body>
+</html>

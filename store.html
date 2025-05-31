@@ -1,0 +1,259 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Магазин проектов - Mystics Store</title>
+  <style>
+    body {
+      margin: 0;
+      font-family: Arial, sans-serif;
+      background: linear-gradient(135deg, #ff4e50, #f9d423);
+      color: white;
+      padding: 15px;
+      box-sizing: border-box;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+    }
+    h1 {
+      margin-bottom: 20px;
+      font-size: 2.2rem;
+      text-shadow: 0 0 6px #ff3366;
+      text-align: center;
+    }
+    .controls {
+      width: 100%;
+      max-width: 700px;
+      margin-bottom: 20px;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      justify-content: center;
+    }
+    input[type="text"],
+    select {
+      padding: 10px;
+      font-size: 1.1rem;
+      border-radius: 10px;
+      border: none;
+      flex-grow: 1;
+      min-width: 150px;
+      box-sizing: border-box;
+    }
+    select {
+      max-width: 180px;
+    }
+    .project-list {
+      width: 100%;
+      max-width: 700px;
+      background: rgba(255, 51, 102, 0.85);
+      border-radius: 15px;
+      padding: 15px 20px;
+      box-sizing: border-box;
+      box-shadow: 0 0 20px rgba(255, 51, 102, 0.7);
+      max-height: 75vh;
+      overflow-y: auto;
+    }
+    .project-item {
+      border-bottom: 1px solid #ff3366;
+      padding: 12px 0;
+      display: flex;
+      flex-direction: column;
+    }
+    .project-item:last-child {
+      border-bottom: none;
+    }
+    .project-title {
+      font-weight: bold;
+      font-size: 1.3rem;
+      margin-bottom: 4px;
+    }
+    .project-status {
+      font-size: 1rem;
+      color: #ffd1e0;
+      font-style: italic;
+      margin-bottom: 6px;
+    }
+    .project-desc {
+      margin-bottom: 6px;
+      font-size: 1rem;
+    }
+    .project-link {
+      color: #ffb6c1;
+      word-break: break-all;
+      font-size: 1rem;
+      margin-bottom: 6px;
+      display: block;
+      text-decoration: underline;
+      cursor: pointer;
+    }
+    .project-info {
+      font-size: 0.95rem;
+      margin-bottom: 6px;
+    }
+    .btn-open {
+      align-self: flex-start;
+      background: #ff3366;
+      color: white;
+      border: none;
+      border-radius: 12px;
+      padding: 8px 16px;
+      font-size: 1rem;
+      cursor: pointer;
+      user-select: none;
+      box-shadow: 0 0 10px rgba(255, 51, 102, 0.8);
+      transition: background-color 0.3s ease;
+      width: fit-content;
+    }
+    .btn-open:hover {
+      background: #ff1a4d;
+    }
+    #message {
+      margin-top: 10px;
+      font-size: 1.1rem;
+      min-height: 24px;
+      text-align: center;
+      user-select: none;
+    }
+  </style>
+</head>
+<body>
+
+  <h1>Магазин проектов</h1>
+
+  <div class="controls">
+    <input type="text" id="searchInput" placeholder="Поиск по названию и описанию..." autocomplete="off" />
+    <select id="typeFilter">
+      <option value="">Все типы</option>
+      <option value="Игра">Игра</option>
+      <option value="Приложение">Приложение</option>
+      <option value="Сайт">Сайт</option>
+      <option value="Другое">Другое</option>
+    </select>
+    <select id="sortOrder">
+      <option value="newest">Сначала новые</option>
+      <option value="oldest">Сначала старые</option>
+    </select>
+  </div>
+
+  <div class="project-list" id="projectList"></div>
+  <div id="message"></div>
+
+  <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-database-compat.js"></script>
+
+  <script>
+    const firebaseConfig = {
+      databaseURL: "https://arlustruke2-default-rtdb.firebaseio.com/"
+    };
+    firebase.initializeApp(firebaseConfig);
+    const db = firebase.database();
+
+    const searchInput = document.getElementById('searchInput');
+    const typeFilter = document.getElementById('typeFilter');
+    const sortOrder = document.getElementById('sortOrder');
+    const projectList = document.getElementById('projectList');
+    const messageEl = document.getElementById('message');
+
+    let allProjects = [];
+
+    function escapeHtml(text) {
+      const div = document.createElement('div');
+      div.textContent = text;
+      return div.innerHTML;
+    }
+
+    function renderProjects() {
+      projectList.innerHTML = '';
+      let filtered = allProjects;
+
+      // Фильтр по типу
+      const typeVal = typeFilter.value;
+      if (typeVal) {
+        filtered = filtered.filter(p => p.type === typeVal);
+      }
+
+      // Поиск
+      const searchVal = searchInput.value.trim().toLowerCase();
+      if (searchVal) {
+        filtered = filtered.filter(p =>
+          p.title.toLowerCase().includes(searchVal) ||
+          (p.description && p.description.toLowerCase().includes(searchVal))
+        );
+      }
+
+      // Сортировка
+      filtered.sort((a, b) => {
+        return sortOrder.value === 'newest' ? 
+          b.createdAt - a.createdAt : 
+          a.createdAt - b.createdAt;
+      });
+
+      if (filtered.length === 0) {
+        projectList.innerHTML = '<p style="text-align:center; color:#ffd1e0;">Проекты не найдены.</p>';
+        return;
+      }
+
+      filtered.forEach(p => {
+        const div = document.createElement('div');
+        div.className = 'project-item';
+        div.innerHTML = `
+          <div class="project-title">${escapeHtml(p.title)}</div>
+          <div class="project-status">Статус: ${escapeHtml(p.status)}</div>
+          <div class="project-desc">${escapeHtml(p.description || '')}</div>
+<a href="comment.html?author=${escapeHtml(p.author)}&id=${escapeHtml(p.id)}" style="color: #ffb6c1;">Комментарии</a>
+          <a href="${escapeHtml(p.link || '#')}" target="_blank" class="project-link">Перейти в проект</a>
+          <div class="project-info">Тип: ${escapeHtml(p.type)}</div>
+          <div class="project-info">Версия: ${escapeHtml(p.version || '')}</div>
+          <div class="project-info">Автор: ${escapeHtml(p.author)}</div>
+        `;
+        projectList.appendChild(div);
+      });
+    }
+
+    function subscribeProjects() {
+      messageEl.textContent = 'Загрузка проектов...';
+
+      db.ref('projects').on('value', snapshot => {
+        const data = snapshot.val();
+        allProjects = [];
+
+        if (!data) {
+          messageEl.textContent = 'Проектов пока нет.';
+          renderProjects();
+          return;
+        }
+
+        // Обрабатываем всех пользователей
+        for (const userId in data) {
+          if (typeof data[userId] === 'object') {
+            for (const projId in data[userId]) {
+              const proj = data[userId][projId];
+              if (proj && proj.createdAt && proj.status === 'одобрен') {
+                allProjects.push({
+                  ...proj,
+                  author: userId
+                });
+              }
+            }
+          }
+        }
+
+        messageEl.textContent = '';
+        renderProjects();
+      }, err => {
+        console.error('Ошибка:', err);
+        messageEl.textContent = 'Ошибка загрузки проектов.';
+      });
+    }
+
+    searchInput.addEventListener('input', renderProjects);
+    typeFilter.addEventListener('change', renderProjects);
+    sortOrder.addEventListener('change', renderProjects);
+
+    window.onload = subscribeProjects;
+  </script>
+</body>
+</html>

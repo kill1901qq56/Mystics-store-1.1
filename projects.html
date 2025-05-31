@@ -1,0 +1,289 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Ваши проекты - Mystics Store</title>
+  <style>
+    body {
+      margin: 0;
+      font-family: Arial, sans-serif;
+      background: linear-gradient(135deg, #ff4e50, #f9d423);
+      color: white;
+      padding: 15px;
+      box-sizing: border-box;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+    }
+    h1 {
+      margin-bottom: 20px;
+      font-size: 2.2rem;
+      text-shadow: 0 0 6px #ff3366;
+      text-align: center;
+    }
+    form {
+      background: rgba(255, 51, 102, 0.85);
+      padding: 20px 25px;
+      border-radius: 15px;
+      box-shadow: 0 0 20px rgba(255, 51, 102, 0.7);
+      width: 100%;
+      max-width: 450px;
+      margin-bottom: 30px;
+      box-sizing: border-box;
+    }
+    label {
+      display: block;
+      margin-top: 12px;
+      font-size: 1.1rem;
+    }
+    input[type="text"],
+    textarea,
+    select {
+      width: 100%;
+      margin-top: 6px;
+      padding: 10px;
+      font-size: 1.1rem;
+      border-radius: 10px;
+      border: none;
+      box-sizing: border-box;
+      resize: vertical;
+    }
+    textarea {
+      min-height: 80px;
+    }
+    button {
+      margin-top: 20px;
+      width: 100%;
+      padding: 15px 0;
+      font-size: 1.4rem;
+      border: none;
+      border-radius: 15px;
+      background: #ff3366;
+      cursor: pointer;
+      color: white;
+      box-shadow: 0 4px 15px rgba(255, 51, 102, 0.8);
+      transition: background-color 0.3s ease;
+      user-select: none;
+    }
+    button:hover {
+      background: #ff1a4d;
+    }
+    #message {
+      margin-top: 15px;
+      font-size: 1.1rem;
+      min-height: 24px;
+      text-align: center;
+      user-select: none;
+    }
+    .project-list {
+      width: 100%;
+      max-width: 450px;
+      background: rgba(255, 51, 102, 0.7);
+      border-radius: 15px;
+      padding: 15px 20px;
+      box-sizing: border-box;
+      box-shadow: 0 0 15px rgba(255, 51, 102, 0.6);
+    }
+    .project-item {
+      border-bottom: 1px solid #ff3366;
+      padding: 10px 0;
+    }
+    .project-item:last-child {
+      border-bottom: none;
+    }
+    .project-title {
+      font-weight: bold;
+      font-size: 1.3rem;
+      margin-bottom: 4px;
+    }
+    .project-status {
+      font-size: 1rem;
+      color: #ffd1e0;
+      font-style: italic;
+    }
+    .project-desc {
+      margin: 6px 0;
+      font-size: 1rem;
+    }
+    .project-link {
+      color: #ffb6c1;
+      word-break: break-all;
+      font-size: 1rem;
+      margin-bottom: 4px;
+      display: block;
+    }
+  </style>
+</head>
+<body>
+
+  <h1>Ваши проекты</h1>
+
+  <form id="projectForm">
+    <label for="title">Название проекта</label>
+    <input type="text" id="title" name="title" required maxlength="50" />
+
+    <label for="description">Описание</label>
+    <textarea id="description" name="description" required maxlength="500"></textarea>
+
+    <label for="type">Тип проекта</label>
+    <select id="type" name="type" required>
+      <option value="">-- Выберите тип --</option>
+      <option value="Игра">Игра</option>
+      <option value="Приложение">Приложение</option>
+      <option value="Сайт">Сайт</option>
+      <option value="Другое">Другое</option>
+    </select>
+
+    <label for="link">Ссылка на скачивание или канал</label>
+    <input type="text" id="link" name="link" required maxlength="200" placeholder="https://..." />
+
+    <label for="version">Версия проекта</label>
+    <input type="text" id="version" name="version" required maxlength="20" placeholder="Например, 1.0.0" />
+
+    <button type="submit">Отправить на модерацию</button>
+  </form>
+
+  <div id="message"></div>
+
+  <div class="project-list" id="projectList" style="display:none;">
+    <h2>Мои проекты</h2>
+    <div id="projectsContainer"></div>
+  </div>
+
+  <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-database-compat.js"></script>
+
+  <script>
+    const firebaseConfig = {
+      databaseURL: "https://arlustruke2-default-rtdb.firebaseio.com/"
+    };
+    firebase.initializeApp(firebaseConfig);
+    const db = firebase.database();
+
+    const projectForm = document.getElementById('projectForm');
+    const messageEl = document.getElementById('message');
+    const projectListEl = document.getElementById('projectList');
+    const projectsContainer = document.getElementById('projectsContainer');
+
+    // Получаем текущего пользователя из localStorage
+    function getCurrentUser() {
+      try {
+        const userJSON = localStorage.getItem('mysticsUser');
+        if (!userJSON) return null;
+        return JSON.parse(userJSON);
+      } catch {
+        return null;
+      }
+    }
+
+    // Генерация уникального ID проекта
+    function generateProjectId() {
+      return 'proj_' + Date.now() + '_' + Math.random().toString(36).substr(2, 6);
+    }
+
+    // Загрузка проектов пользователя и отображение
+    async function loadProjects(userId) {
+      try {
+        const snapshot = await db.ref('projects/' + userId).once('value');
+        const projects = snapshot.val();
+        projectsContainer.innerHTML = '';
+        if (!projects) {
+          projectListEl.style.display = 'none';
+          return;
+        }
+        projectListEl.style.display = 'block';
+
+        for (const id in projects) {
+          const p = projects[id];
+          const div = document.createElement('div');
+          div.className = 'project-item';
+
+          div.innerHTML = `
+            <div class="project-title">${escapeHtml(p.title)}</div>
+            <div class="project-status">Статус: ${escapeHtml(p.status)}</div>
+            <div class="project-desc">${escapeHtml(p.description)}</div>
+            <a href="${escapeHtml(p.link)}" target="_blank" class="project-link">${escapeHtml(p.link)}</a>
+            <div>Тип: ${escapeHtml(p.type)}</div>
+            <div>Версия: ${escapeHtml(p.version)}</div>
+          `;
+          projectsContainer.appendChild(div);
+        }
+      } catch (err) {
+        console.error('Ошибка загрузки проектов:', err);
+      }
+    }
+
+    // Простая функция для экранирования HTML (безопасность)
+    function escapeHtml(text) {
+      const div = document.createElement('div');
+      div.textContent = text;
+      return div.innerHTML;
+    }
+
+    // Отправка формы
+    projectForm.onsubmit = async (e) => {
+      e.preventDefault();
+      messageEl.textContent = '';
+      const user = getCurrentUser();
+      if (!user || !user.id) {
+        messageEl.style.color = '#ff4444';
+        messageEl.textContent = 'Пользователь не авторизован. Пожалуйста, войдите заново.';
+        setTimeout(() => {
+          window.location.href = 'auth.html';
+        }, 2000);
+        return;
+      }
+
+      const title = projectForm.title.value.trim();
+      const description = projectForm.description.value.trim();
+      const type = projectForm.type.value;
+      const link = projectForm.link.value.trim();
+      const version = projectForm.version.value.trim();
+
+      if (!title || !description || !type || !link || !version) {
+        messageEl.style.color = '#ff4444';
+        messageEl.textContent = 'Пожалуйста, заполните все поля.';
+        return;
+      }
+
+      // Можно добавить проверку корректности ссылки (по желанию)
+
+      const projectId = generateProjectId();
+      const projectData = {
+        title,
+        description,
+        type,
+        link,
+        version,
+        status: 'на модерации',
+        createdAt: Date.now()
+      };
+
+      try {
+        await db.ref('projects/' + user.id + '/' + projectId).set(projectData);
+        messageEl.style.color = '#aaffaa';
+        messageEl.textContent = 'Проект отправлен на модерацию!';
+        projectForm.reset();
+        loadProjects(user.id);
+      } catch (err) {
+        console.error('Ошибка при отправке проекта:', err);
+        messageEl.style.color = '#ff4444';
+        messageEl.textContent = 'Ошибка при отправке проекта, попробуйте позже.';
+      }
+    };
+
+    // При загрузке страницы загружаем проекты
+    window.onload = () => {
+      const user = getCurrentUser();
+      if (!user || !user.id) {
+        window.location.href = 'auth.html';
+        return;
+      }
+      loadProjects(user.id);
+    };
+  </script>
+
+</body>
+</html>

@@ -1,0 +1,126 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8" />
+  <title>Mystics Store</title>
+  <style>
+    body {
+      margin: 0;
+      font-family: Arial, sans-serif;
+      background: linear-gradient(135deg, #ff4e50, #f9d423);
+      color: #fff;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      height: 100vh;
+      overflow: hidden;
+    }
+    #updateModal {
+      position: fixed;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      background: #ff3366;
+      border-radius: 15px;
+      padding: 30px;
+      box-shadow: 0 0 20px rgba(255, 51, 102, 0.7);
+      max-width: 90%;
+      text-align: center;
+      display: none;
+      z-index: 1000;
+    }
+    #updateModal h2 {
+      margin-bottom: 15px;
+      font-size: 28px;
+    }
+    #updateModal p {
+      font-size: 18px;
+      margin-bottom: 25px;
+    }
+    #updateModal button {
+      background: #f94892;
+      border: none;
+      padding: 12px 25px;
+      border-radius: 10px;
+      font-size: 18px;
+      color: white;
+      cursor: pointer;
+      transition: background-color 0.3s ease;
+    }
+    #updateModal button:hover {
+      background: #ff1a4d;
+    }
+  </style>
+</head>
+<body>
+
+  <div id="updateModal">
+    <h2>Доступно обновление!</h2>
+    <p>Пожалуйста, обновите приложение для продолжения.</p>
+    <button id="reloadBtn">Обновить</button>
+  </div>
+
+  <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-database-compat.js"></script>
+  <script>
+    // Конфигурация Firebase (тебе нужно вставить свои данные)
+    const firebaseConfig = {
+      databaseURL: "https://arlustruke2-default-rtdb.firebaseio.com/"
+    };
+
+    // Инициализация Firebase
+    firebase.initializeApp(firebaseConfig);
+    const db = firebase.database();
+
+    // Локальная версия приложения
+    const localVersion = "1.0.0";
+
+    // Функция проверки версии из базы
+    function checkVersion() {
+      db.ref('version').once('value').then(snapshot => {
+        const remoteVersion = snapshot.val();
+        if (!remoteVersion) {
+          // Если в базе нет версии, считаем что обновления нет
+          redirectToMenu();
+          return;
+        }
+
+        if (remoteVersion !== localVersion) {
+          // Показать окно с обновлением
+          showUpdateModal();
+        } else {
+          // Перейти на menu.lua
+          redirectToMenu();
+        }
+      }).catch(error => {
+        console.error("Ошибка при получении версии из Firebase:", error);
+        // Если ошибка, тоже перейти на menu.lua
+        redirectToMenu();
+      });
+    }
+
+    // Показать модальное окно обновления
+    function showUpdateModal() {
+      const modal = document.getElementById('updateModal');
+      modal.style.display = 'block';
+
+      const reloadBtn = document.getElementById('reloadBtn');
+      reloadBtn.onclick = () => {
+        // Перезагрузить страницу (или можно сделать переход на обновление)
+        location.reload();
+      };
+    }
+
+    // Переход на menu.html
+    function redirectToMenu() {
+      window.location.href = "menu.html";
+    }
+
+    // Запускаем проверку после загрузки страницы
+    window.onload = () => {
+      checkVersion();
+    };
+  </script>
+
+</body>
+</html>

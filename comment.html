@@ -1,0 +1,247 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Комментарии - Mystics Store</title>
+  <style>
+    body {
+      margin: 0;
+      font-family: Arial, sans-serif;
+      background: linear-gradient(135deg, #ff4e50, #f9d423);
+      color: white;
+      padding: 15px;
+      box-sizing: border-box;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+    }
+    .container {
+      width: 100%;
+      max-width: 700px;
+    }
+    .project-info {
+      background: rgba(255, 51, 102, 0.85);
+      border-radius: 15px;
+      padding: 15px;
+      margin-bottom: 20px;
+      box-shadow: 0 0 20px rgba(255, 51, 102, 0.7);
+    }
+    .comments-section {
+      background: rgba(255, 51, 102, 0.85);
+      border-radius: 15px;
+      padding: 15px;
+      box-shadow: 0 0 20px rgba(255, 51, 102, 0.7);
+    }
+    .comment-form {
+      margin-bottom: 20px;
+    }
+    textarea {
+      width: 100%;
+      padding: 10px;
+      border-radius: 10px;
+      border: none;
+      margin-bottom: 10px;
+      resize: vertical;
+      min-height: 80px;
+    }
+    .btn {
+      background: #ff3366;
+      color: white;
+      border: none;
+      border-radius: 12px;
+      padding: 8px 16px;
+      font-size: 1rem;
+      cursor: pointer;
+      box-shadow: 0 0 10px rgba(255, 51, 102, 0.8);
+    }
+    .btn:hover {
+      background: #ff1a4d;
+    }
+    .comment {
+      border-bottom: 1px solid #ff3366;
+      padding: 10px 0;
+    }
+    .comment-author {
+      font-weight: bold;
+      color: #ffb6c1;
+      cursor: pointer;
+      text-decoration: underline;
+    }
+    .comment-text {
+      margin: 5px 0;
+    }
+    .comment-date {
+      font-size: 0.8rem;
+      color: #ffd1e0;
+    }
+    .error {
+      color: #ff0000;
+      margin: 10px 0;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="project-info" id="projectInfo">
+      <!-- Информация о проекте будет загружена через JS -->
+    </div>
+    
+    <div class="comments-section">
+      <h2>Комментарии</h2>
+      <div class="comment-form">
+        <textarea id="commentText" placeholder="Напишите ваш комментарий..."></textarea>
+        <button class="btn" id="submitComment">Отправить</button>
+        <div class="error" id="commentError"></div>
+      </div>
+      <div id="commentsList"></div>
+    </div>
+  </div>
+
+  <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-database-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-auth-compat.js"></script>
+
+  <script>
+    const firebaseConfig = {
+      databaseURL: "https://arlustruke2-default-rtdb.firebaseio.com/"
+    };
+    firebase.initializeApp(firebaseConfig);
+    const db = firebase.database();
+    const auth = firebase.auth();
+
+    // Получаем ID проекта из URL
+    const urlParams = new URLSearchParams(window.location.search);
+    const projectId = urlParams.get('id');
+    const authorId = urlParams.get('author');
+
+    if (!projectId || !authorId) {
+      window.location.href = 'store.html';
+    }
+
+    let currentUser = null;
+    let isAdmin = false;
+
+    // Проверяем аутентификацию
+    auth.onAuthStateChanged((user) => {
+      if (user) {
+        currentUser = user;
+        checkAdminStatus(user.uid);
+      } else {
+        // Если пользователь не авторизован, перенаправляем на страницу входа
+        window.location.href = 'login.html';
+      }
+    });
+
+    // Проверяем, является ли пользователь админом
+    function checkAdminStatus(userId) {
+      db.ref('admins/' + userId).once('value').then(snapshot => {
+        isAdmin = snapshot.val() === true;
+        loadProjectInfo();
+        loadComments();
+      });
+    }
+
+    // Загружаем информацию о проекте
+    function loadProjectInfo() {
+      db.ref(`projects/${authorId}/${projectId}`).once('value').then(snapshot => {
+        const project = snapshot.val();
+        if (project) {
+          document.getElementById('projectInfo').innerHTML = `
+            <h2>${escapeHtml(project.title)}</h2>
+            <p>${escapeHtml(project.description || '')}</p>
+            <p>Автор: <span class="comment-author" onclick="viewProfile('${authorId}')">${escapeHtml(authorId)}</span></p>
+          `;
+        }
+      });
+    }
+
+    // Загружаем комментарии
+    function loadComments() {
+      db.ref(`comments/${authorId}/${projectId}`).on('value', snapshot => {
+        const comments = snapshot.val();
+        const commentsList = document.getElementById('commentsList');
+        commentsList.innerHTML = '';
+
+        if (!comments) {
+          commentsList.innerHTML = '<p>Пока нет комментариев</p>';
+          return;
+        }
+
+        Object.entries(comments).forEach(([commentId, comment]) => {
+          const commentDiv = document.createElement('div');
+          commentDiv.className = 'comment';
+          commentDiv.innerHTML = `
+            <div class="comment-author" onclick="viewProfile('${escapeHtml(comment.authorId)}')">
+              ${escapeHtml(comment.authorName)}
+            </div>
+            <div class="comment-text">${escapeHtml(comment.text)}</div>
+            <div class="comment-date">${new Date(comment.timestamp).toLocaleString()}</div>
+          `;
+          commentsList.appendChild(commentDiv);
+        });
+      });
+    }
+
+    // Обработчик отправки комментария
+    document.getElementById('submitComment').addEventListener('click', () => {
+      const commentText = document.getElementById('commentText').value.trim();
+      const errorElement = document.getElementById('commentError');
+
+      if (!commentText) {
+        errorElement.textContent = 'Комментарий не может быть пустым';
+        return;
+      }
+
+      // Проверяем лимит комментариев для обычных пользователей
+      if (!isAdmin) {
+        db.ref(`userCommentCounts/${currentUser.uid}/${authorId}/${projectId}`).once('value').then(snapshot => {
+          const count = snapshot.val() || 0;
+          if (count >= 5) {
+            errorElement.textContent = 'Вы достигли лимита в 5 комментариев на этот проект';
+          } else {
+            postComment(commentText);
+          }
+        });
+      } else {
+        postComment(commentText);
+      }
+    });
+
+    // Отправка комментария
+    function postComment(text) {
+      const newCommentRef = db.ref(`comments/${authorId}/${projectId}`).push();
+      const timestamp = Date.now();
+      
+      newCommentRef.set({
+        text: text,
+        authorId: currentUser.uid,
+        authorName: currentUser.displayName || currentUser.email.split('@')[0],
+        timestamp: timestamp
+      });
+
+      // Обновляем счетчик комментариев для пользователя
+      if (!isAdmin) {
+        db.ref(`userCommentCounts/${currentUser.uid}/${authorId}/${projectId}`)
+          .transaction(count => (count || 0) + 1);
+      }
+
+      document.getElementById('commentText').value = '';
+      document.getElementById('commentError').textContent = '';
+    }
+
+    // Просмотр профиля пользователя
+    function viewProfile(userId) {
+      window.location.href = `profile.html?id=${userId}`;
+    }
+
+    // Экранирование HTML
+    function escapeHtml(text) {
+      const div = document.createElement('div');
+      div.textContent = text;
+      return div.innerHTML;
+    }
+  </script>
+</body>
+</html>
